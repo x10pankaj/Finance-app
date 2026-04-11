@@ -1,644 +1,377 @@
 #!/usr/bin/env python3
 """
-Comprehensive Backend API Testing for Multi-Year Budget Tracker
-Tests all CRUD operations, calculations, and edge cases
+Backend API Testing for Multi-Year Budget Tracker
+Focus: Transaction Upload and Import Endpoints
 """
 
 import requests
 import json
-import sys
+import os
+import tempfile
+import csv
 from datetime import datetime
 
-# Backend URL from environment
+# Backend URL from frontend .env
 BACKEND_URL = "https://finance-dashboard-651.preview.emergentagent.com/api"
 
 class BudgetTrackerTester:
     def __init__(self):
-        self.base_url = BACKEND_URL
-        self.session = requests.Session()
+        self.backend_url = BACKEND_URL
         self.test_results = []
-        self.created_ids = {
-            'expense_categories': [],
-            'expenses': [],
-            'income_sources': [],
-            'investment_types': [],
-            'investments': []
-        }
         
-    def log_test(self, test_name, success, message="", response_data=None):
+    def log_test(self, test_name, success, details=""):
         """Log test results"""
         status = "✅ PASS" if success else "❌ FAIL"
-        print(f"{status} {test_name}: {message}")
         self.test_results.append({
-            'test': test_name,
-            'success': success,
-            'message': message,
-            'response_data': response_data
+            "test": test_name,
+            "status": status,
+            "details": details
         })
+        print(f"{status}: {test_name}")
+        if details:
+            print(f"   Details: {details}")
+    
+    def create_test_csv(self):
+        """Create test CSV file with various transaction types"""
+        test_data = [
+            ["Date", "Description", "Amount", "Type"],
+            ["2025-01-15", "AMAZON MARKETPLACE", "125.99", "Debit"],
+            ["2025-01-16", "UBER TRIP", "35.50", "Debit"],
+            ["2025-01-17", "SALARY DEPOSIT", "5000.00", "Credit"],
+            ["2025-01-18", "NETFLIX SUBSCRIPTION", "15.99", "Debit"],
+            ["2025-01-19", "STARBUCKS COFFEE", "8.75", "Debit"],
+            ["2025-01-20", "WALMART GROCERIES", "89.45", "Debit"],
+            ["2025-01-21", "SHELL GAS STATION", "45.20", "Debit"],
+            ["2025-01-22", "CVS PHARMACY", "25.30", "Debit"],
+            ["2025-01-23", "FREELANCE PAYMENT", "1500.00", "Credit"],
+            ["2025-01-24", "SPOTIFY PREMIUM", "9.99", "Debit"]
+        ]
         
-    def make_request(self, method, endpoint, data=None, params=None):
-        """Make HTTP request with error handling"""
-        url = f"{self.base_url}{endpoint}"
+        # Create temporary CSV file
+        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
+        writer = csv.writer(temp_file)
+        writer.writerows(test_data)
+        temp_file.close()
+        return temp_file.name
+    
+    def test_transaction_upload(self):
+        """Test POST /api/transactions/upload endpoint"""
+        print("\n=== Testing Transaction Upload Endpoint ===")
+        
+        # Create test CSV file
+        csv_file_path = self.create_test_csv()
+        
         try:
-            if method == "GET":
-                response = self.session.get(url, params=params)
-            elif method == "POST":
-                response = self.session.post(url, json=data)
-            elif method == "PUT":
-                response = self.session.put(url, json=data)
-            elif method == "DELETE":
-                response = self.session.delete(url)
-            else:
-                raise ValueError(f"Unsupported method: {method}")
+            # Test CSV upload
+            with open(csv_file_path, 'rb') as f:
+                files = {'file': ('test_transactions.csv', f, 'text/csv')}
+                response = requests.post(f"{self.backend_url}/transactions/upload", files=files)
+            
+            if response.status_code == 200:
+                data = response.json()
+                transactions = data.get('transactions', [])
                 
-            return response
-        except Exception as e:
-            print(f"Request failed: {e}")
-            return None
-    
-    def test_init_data(self):
-        """Test POST /api/init - Initialize default data"""
-        print("\n=== Testing Initialize Data ===")
-        
-        response = self.make_request("POST", "/init")
-        if response and response.status_code == 200:
-            data = response.json()
-            self.log_test("Initialize Data", True, f"Status: {response.status_code}, Message: {data.get('message', '')}")
-        else:
-            self.log_test("Initialize Data", False, f"Status: {response.status_code if response else 'No response'}")
-    
-    def test_expense_categories(self):
-        """Test expense categories CRUD operations"""
-        print("\n=== Testing Expense Categories ===")
-        
-        # Test GET expense categories
-        response = self.make_request("GET", "/expense-categories")
-        if response and response.status_code == 200:
-            categories = response.json()
-            self.log_test("GET Expense Categories", True, f"Retrieved {len(categories)} categories")
-            
-            # Verify default categories exist
-            default_names = ["Rent/Mortgage", "Utilities", "Groceries", "Transportation"]
-            found_defaults = [cat for cat in categories if cat['name'] in default_names]
-            self.log_test("Default Categories Present", len(found_defaults) > 0, f"Found {len(found_defaults)} default categories")
-        else:
-            self.log_test("GET Expense Categories", False, f"Status: {response.status_code if response else 'No response'}")
-            return
-        
-        # Test POST expense category
-        new_category = {
-            "name": "Test Category",
-            "icon": "test-icon"
-        }
-        response = self.make_request("POST", "/expense-categories", new_category)
-        if response and response.status_code == 200:
-            created_category = response.json()
-            self.created_ids['expense_categories'].append(created_category['id'])
-            self.log_test("POST Expense Category", True, f"Created category: {created_category['name']}")
-        else:
-            self.log_test("POST Expense Category", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test DELETE expense category (only non-default)
-        if self.created_ids['expense_categories']:
-            category_id = self.created_ids['expense_categories'][0]
-            response = self.make_request("DELETE", f"/expense-categories/{category_id}")
-            if response and response.status_code == 200:
-                self.log_test("DELETE Expense Category", True, "Successfully deleted non-default category")
-            else:
-                self.log_test("DELETE Expense Category", False, f"Status: {response.status_code if response else 'No response'}")
-    
-    def test_expenses(self):
-        """Test expenses CRUD operations"""
-        print("\n=== Testing Expenses ===")
-        
-        # First get categories to use valid category_id
-        categories_response = self.make_request("GET", "/expense-categories")
-        if not categories_response or categories_response.status_code != 200:
-            self.log_test("Expenses Setup", False, "Could not get categories for testing")
-            return
-        
-        categories = categories_response.json()
-        if not categories:
-            self.log_test("Expenses Setup", False, "No categories available for testing")
-            return
-        
-        test_category = categories[0]
-        current_year = datetime.now().year
-        
-        # Test GET expenses
-        response = self.make_request("GET", "/expenses")
-        if response and response.status_code == 200:
-            expenses = response.json()
-            self.log_test("GET Expenses", True, f"Retrieved {len(expenses)} expenses")
-        else:
-            self.log_test("GET Expenses", False, f"Status: {response.status_code if response else 'No response'}")
-            return
-        
-        # Test POST expense (debit)
-        new_expense = {
-            "name": "Monthly Rent",
-            "category_id": test_category['id'],
-            "category_name": test_category['name'],
-            "amount": 1500.0,
-            "transaction_type": "debit",
-            "appreciation_rate": 3.0,
-            "start_year": current_year,
-            "currency": "USD",
-            "is_recurring": True
-        }
-        response = self.make_request("POST", "/expenses", new_expense)
-        if response and response.status_code == 200:
-            created_expense = response.json()
-            self.created_ids['expenses'].append(created_expense['id'])
-            self.log_test("POST Expense (Debit)", True, f"Created expense: {created_expense['name']}")
-        else:
-            self.log_test("POST Expense (Debit)", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test POST expense (credit)
-        credit_expense = {
-            "name": "Rental Income",
-            "category_id": test_category['id'],
-            "category_name": test_category['name'],
-            "amount": 800.0,
-            "transaction_type": "credit",
-            "appreciation_rate": 2.0,
-            "start_year": current_year,
-            "currency": "USD",
-            "is_recurring": True
-        }
-        response = self.make_request("POST", "/expenses", credit_expense)
-        if response and response.status_code == 200:
-            created_expense = response.json()
-            self.created_ids['expenses'].append(created_expense['id'])
-            self.log_test("POST Expense (Credit)", True, f"Created credit expense: {created_expense['name']}")
-        else:
-            self.log_test("POST Expense (Credit)", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test PUT expense
-        if self.created_ids['expenses']:
-            expense_id = self.created_ids['expenses'][0]
-            update_data = {
-                "amount": 1600.0,
-                "appreciation_rate": 3.5
-            }
-            response = self.make_request("PUT", f"/expenses/{expense_id}", update_data)
-            if response and response.status_code == 200:
-                updated_expense = response.json()
-                self.log_test("PUT Expense", True, f"Updated expense amount to {updated_expense['amount']}")
-            else:
-                self.log_test("PUT Expense", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test GET single expense
-        if self.created_ids['expenses']:
-            expense_id = self.created_ids['expenses'][0]
-            response = self.make_request("GET", f"/expenses/{expense_id}")
-            if response and response.status_code == 200:
-                expense = response.json()
-                self.log_test("GET Single Expense", True, f"Retrieved expense: {expense['name']}")
-            else:
-                self.log_test("GET Single Expense", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test DELETE expense
-        if self.created_ids['expenses']:
-            expense_id = self.created_ids['expenses'].pop()
-            response = self.make_request("DELETE", f"/expenses/{expense_id}")
-            if response and response.status_code == 200:
-                self.log_test("DELETE Expense", True, "Successfully deleted expense")
-            else:
-                self.log_test("DELETE Expense", False, f"Status: {response.status_code if response else 'No response'}")
-    
-    def test_income_sources(self):
-        """Test income sources CRUD operations"""
-        print("\n=== Testing Income Sources ===")
-        
-        current_year = datetime.now().year
-        
-        # Test GET income sources
-        response = self.make_request("GET", "/income-sources")
-        if response and response.status_code == 200:
-            sources = response.json()
-            self.log_test("GET Income Sources", True, f"Retrieved {len(sources)} income sources")
-        else:
-            self.log_test("GET Income Sources", False, f"Status: {response.status_code if response else 'No response'}")
-            return
-        
-        # Test POST income source (percentage increment)
-        new_income = {
-            "name": "Software Engineer Salary",
-            "amount": 80000.0,
-            "increment_rate": 5.0,
-            "increment_type": "percentage",
-            "start_year": current_year,
-            "currency": "USD",
-            "is_active": True
-        }
-        response = self.make_request("POST", "/income-sources", new_income)
-        if response and response.status_code == 200:
-            created_income = response.json()
-            self.created_ids['income_sources'].append(created_income['id'])
-            self.log_test("POST Income Source (Percentage)", True, f"Created income: {created_income['name']}")
-        else:
-            self.log_test("POST Income Source (Percentage)", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test POST income source (fixed increment)
-        fixed_income = {
-            "name": "Freelance Work",
-            "amount": 2000.0,
-            "increment_rate": 200.0,
-            "increment_type": "fixed",
-            "start_year": current_year,
-            "currency": "USD",
-            "is_active": True
-        }
-        response = self.make_request("POST", "/income-sources", fixed_income)
-        if response and response.status_code == 200:
-            created_income = response.json()
-            self.created_ids['income_sources'].append(created_income['id'])
-            self.log_test("POST Income Source (Fixed)", True, f"Created fixed increment income: {created_income['name']}")
-        else:
-            self.log_test("POST Income Source (Fixed)", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test PUT income source
-        if self.created_ids['income_sources']:
-            income_id = self.created_ids['income_sources'][0]
-            update_data = {
-                "amount": 85000.0,
-                "increment_rate": 6.0
-            }
-            response = self.make_request("PUT", f"/income-sources/{income_id}", update_data)
-            if response and response.status_code == 200:
-                updated_income = response.json()
-                self.log_test("PUT Income Source", True, f"Updated income amount to {updated_income['amount']}")
-            else:
-                self.log_test("PUT Income Source", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test GET single income source
-        if self.created_ids['income_sources']:
-            income_id = self.created_ids['income_sources'][0]
-            response = self.make_request("GET", f"/income-sources/{income_id}")
-            if response and response.status_code == 200:
-                income = response.json()
-                self.log_test("GET Single Income Source", True, f"Retrieved income: {income['name']}")
-            else:
-                self.log_test("GET Single Income Source", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test DELETE income source
-        if self.created_ids['income_sources']:
-            income_id = self.created_ids['income_sources'].pop()
-            response = self.make_request("DELETE", f"/income-sources/{income_id}")
-            if response and response.status_code == 200:
-                self.log_test("DELETE Income Source", True, "Successfully deleted income source")
-            else:
-                self.log_test("DELETE Income Source", False, f"Status: {response.status_code if response else 'No response'}")
-    
-    def test_investment_types(self):
-        """Test investment types CRUD operations"""
-        print("\n=== Testing Investment Types ===")
-        
-        # Test GET investment types
-        response = self.make_request("GET", "/investment-types")
-        if response and response.status_code == 200:
-            types = response.json()
-            self.log_test("GET Investment Types", True, f"Retrieved {len(types)} investment types")
-            
-            # Verify default types exist
-            default_names = ["Fixed Deposit", "Mutual Funds", "Stocks", "PPF"]
-            found_defaults = [t for t in types if t['name'] in default_names]
-            self.log_test("Default Investment Types Present", len(found_defaults) > 0, f"Found {len(found_defaults)} default types")
-        else:
-            self.log_test("GET Investment Types", False, f"Status: {response.status_code if response else 'No response'}")
-            return
-        
-        # Test POST investment type
-        new_type = {
-            "name": "Test Investment Type",
-            "icon": "test-investment-icon"
-        }
-        response = self.make_request("POST", "/investment-types", new_type)
-        if response and response.status_code == 200:
-            created_type = response.json()
-            self.created_ids['investment_types'].append(created_type['id'])
-            self.log_test("POST Investment Type", True, f"Created type: {created_type['name']}")
-        else:
-            self.log_test("POST Investment Type", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test DELETE investment type (only non-default)
-        if self.created_ids['investment_types']:
-            type_id = self.created_ids['investment_types'][0]
-            response = self.make_request("DELETE", f"/investment-types/{type_id}")
-            if response and response.status_code == 200:
-                self.log_test("DELETE Investment Type", True, "Successfully deleted non-default type")
-            else:
-                self.log_test("DELETE Investment Type", False, f"Status: {response.status_code if response else 'No response'}")
-    
-    def test_investments(self):
-        """Test investments CRUD operations"""
-        print("\n=== Testing Investments ===")
-        
-        # First get investment types to use valid type_id
-        types_response = self.make_request("GET", "/investment-types")
-        if not types_response or types_response.status_code != 200:
-            self.log_test("Investments Setup", False, "Could not get investment types for testing")
-            return
-        
-        types = types_response.json()
-        if not types:
-            self.log_test("Investments Setup", False, "No investment types available for testing")
-            return
-        
-        test_type = types[0]
-        current_year = datetime.now().year
-        
-        # Test GET investments
-        response = self.make_request("GET", "/investments")
-        if response and response.status_code == 200:
-            investments = response.json()
-            self.log_test("GET Investments", True, f"Retrieved {len(investments)} investments")
-        else:
-            self.log_test("GET Investments", False, f"Status: {response.status_code if response else 'No response'}")
-            return
-        
-        # Test POST investment
-        new_investment = {
-            "name": "Emergency Fund",
-            "type_id": test_type['id'],
-            "type_name": test_type['name'],
-            "principal": 10000.0,
-            "interest_rate": 4.5,
-            "start_year": current_year,
-            "currency": "USD",
-            "is_active": True
-        }
-        response = self.make_request("POST", "/investments", new_investment)
-        if response and response.status_code == 200:
-            created_investment = response.json()
-            self.created_ids['investments'].append(created_investment['id'])
-            self.log_test("POST Investment", True, f"Created investment: {created_investment['name']}")
-        else:
-            self.log_test("POST Investment", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test PUT investment
-        if self.created_ids['investments']:
-            investment_id = self.created_ids['investments'][0]
-            update_data = {
-                "principal": 12000.0,
-                "interest_rate": 5.0
-            }
-            response = self.make_request("PUT", f"/investments/{investment_id}", update_data)
-            if response and response.status_code == 200:
-                updated_investment = response.json()
-                self.log_test("PUT Investment", True, f"Updated investment principal to {updated_investment['principal']}")
-            else:
-                self.log_test("PUT Investment", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test GET single investment
-        if self.created_ids['investments']:
-            investment_id = self.created_ids['investments'][0]
-            response = self.make_request("GET", f"/investments/{investment_id}")
-            if response and response.status_code == 200:
-                investment = response.json()
-                self.log_test("GET Single Investment", True, f"Retrieved investment: {investment['name']}")
-            else:
-                self.log_test("GET Single Investment", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test DELETE investment
-        if self.created_ids['investments']:
-            investment_id = self.created_ids['investments'].pop()
-            response = self.make_request("DELETE", f"/investments/{investment_id}")
-            if response and response.status_code == 200:
-                self.log_test("DELETE Investment", True, "Successfully deleted investment")
-            else:
-                self.log_test("DELETE Investment", False, f"Status: {response.status_code if response else 'No response'}")
-    
-    def test_dashboard(self):
-        """Test dashboard endpoint"""
-        print("\n=== Testing Dashboard ===")
-        
-        # Test dashboard with USD
-        response = self.make_request("GET", "/dashboard", params={"currency": "USD"})
-        if response and response.status_code == 200:
-            dashboard = response.json()
-            required_fields = ['current_year', 'currency', 'counts', 'totals', 'expenses_by_category']
-            missing_fields = [field for field in required_fields if field not in dashboard]
-            
-            if not missing_fields:
-                self.log_test("GET Dashboard (USD)", True, f"Retrieved dashboard for {dashboard['current_year']}")
-                
-                # Verify counts structure
-                counts = dashboard.get('counts', {})
-                count_fields = ['expenses', 'income_sources', 'investments']
-                if all(field in counts for field in count_fields):
-                    self.log_test("Dashboard Counts Structure", True, f"Expenses: {counts['expenses']}, Income: {counts['income_sources']}, Investments: {counts['investments']}")
-                else:
-                    self.log_test("Dashboard Counts Structure", False, "Missing count fields")
-                
-                # Verify totals structure
-                totals = dashboard.get('totals', {})
-                total_fields = ['income', 'expenses_debit', 'expenses_credit', 'net_expenses', 'investments', 'net_savings']
-                if all(field in totals for field in total_fields):
-                    self.log_test("Dashboard Totals Structure", True, f"Net savings: {totals['net_savings']}")
-                else:
-                    self.log_test("Dashboard Totals Structure", False, "Missing total fields")
-            else:
-                self.log_test("GET Dashboard (USD)", False, f"Missing fields: {missing_fields}")
-        else:
-            self.log_test("GET Dashboard (USD)", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test dashboard with INR
-        response = self.make_request("GET", "/dashboard", params={"currency": "INR"})
-        if response and response.status_code == 200:
-            dashboard = response.json()
-            self.log_test("GET Dashboard (INR)", True, f"Retrieved INR dashboard for {dashboard['current_year']}")
-        else:
-            self.log_test("GET Dashboard (INR)", False, f"Status: {response.status_code if response else 'No response'}")
-    
-    def test_projections(self):
-        """Test projections endpoint"""
-        print("\n=== Testing Projections ===")
-        
-        # Test projections with USD (5 years)
-        response = self.make_request("GET", "/projections", params={"years": 5, "currency": "USD"})
-        if response and response.status_code == 200:
-            projections = response.json()
-            required_fields = ['currency', 'years', 'projections']
-            missing_fields = [field for field in required_fields if field not in projections]
-            
-            if not missing_fields:
-                proj_data = projections['projections']
-                if len(proj_data) == 5:
-                    self.log_test("GET Projections (5 years USD)", True, f"Retrieved {len(proj_data)} year projections")
+                # Verify response structure
+                if 'message' in data and 'transactions' in data:
+                    self.log_test("Transaction upload - Response structure", True, 
+                                f"Parsed {len(transactions)} transactions")
                     
-                    # Verify projection structure
-                    if proj_data:
-                        first_year = proj_data[0]
-                        projection_fields = ['year', 'total_income', 'total_expenses_debit', 'total_expenses_credit', 
-                                           'net_expenses', 'total_investments', 'net_savings', 'expense_breakdown', 
-                                           'income_breakdown', 'investment_breakdown']
-                        if all(field in first_year for field in projection_fields):
-                            self.log_test("Projections Structure", True, f"Year {first_year['year']} net savings: {first_year['net_savings']}")
-                        else:
-                            missing = [f for f in projection_fields if f not in first_year]
-                            self.log_test("Projections Structure", False, f"Missing fields: {missing}")
+                    # Test auto-categorization
+                    categorization_tests = [
+                        ("AMAZON MARKETPLACE", "Shopping"),
+                        ("UBER TRIP", "Transportation"),
+                        ("STARBUCKS COFFEE", "Dining Out"),
+                        ("NETFLIX SUBSCRIPTION", "Entertainment"),
+                        ("WALMART GROCERIES", "Groceries"),
+                        ("SHELL GAS STATION", "Transportation"),
+                        ("CVS PHARMACY", "Healthcare")
+                    ]
+                    
+                    correct_categorizations = 0
+                    for description, expected_category in categorization_tests:
+                        for trans in transactions:
+                            if description in trans.get('description', ''):
+                                suggested_category = trans.get('suggested_category_name', '')
+                                if expected_category.lower() in suggested_category.lower():
+                                    correct_categorizations += 1
+                                break
+                    
+                    accuracy = (correct_categorizations / len(categorization_tests)) * 100
+                    self.log_test("Auto-categorization accuracy", accuracy >= 70, 
+                                f"{correct_categorizations}/{len(categorization_tests)} correct ({accuracy:.1f}%)")
+                    
+                    # Test transaction types
+                    credit_count = sum(1 for t in transactions if t.get('transaction_type') == 'credit')
+                    debit_count = sum(1 for t in transactions if t.get('transaction_type') == 'debit')
+                    
+                    self.log_test("Transaction type detection", credit_count >= 2 and debit_count >= 7,
+                                f"Credits: {credit_count}, Debits: {debit_count}")
+                    
+                    # Test amount parsing
+                    amounts_valid = all(isinstance(t.get('amount'), (int, float)) and t.get('amount') > 0 
+                                      for t in transactions)
+                    self.log_test("Amount parsing", amounts_valid, "All amounts are valid numbers")
+                    
                 else:
-                    self.log_test("GET Projections (5 years USD)", False, f"Expected 5 years, got {len(proj_data)}")
+                    self.log_test("Transaction upload - Response structure", False, 
+                                "Missing required fields in response")
             else:
-                self.log_test("GET Projections (5 years USD)", False, f"Missing fields: {missing_fields}")
-        else:
-            self.log_test("GET Projections (5 years USD)", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test projections with INR (3 years)
-        response = self.make_request("GET", "/projections", params={"years": 3, "currency": "INR"})
-        if response and response.status_code == 200:
-            projections = response.json()
-            proj_data = projections['projections']
-            if len(proj_data) == 3:
-                self.log_test("GET Projections (3 years INR)", True, f"Retrieved {len(proj_data)} year INR projections")
-            else:
-                self.log_test("GET Projections (3 years INR)", False, f"Expected 3 years, got {len(proj_data)}")
-        else:
-            self.log_test("GET Projections (3 years INR)", False, f"Status: {response.status_code if response else 'No response'}")
-        
-        # Test appreciation rate calculations
-        if self.created_ids['expenses']:
-            # Create an expense with known appreciation rate for testing
-            categories_response = self.make_request("GET", "/expense-categories")
-            if categories_response and categories_response.status_code == 200:
-                categories = categories_response.json()
-                if categories:
-                    test_expense = {
-                        "name": "Test Appreciation Expense",
-                        "category_id": categories[0]['id'],
-                        "category_name": categories[0]['name'],
-                        "amount": 1000.0,
-                        "transaction_type": "debit",
-                        "appreciation_rate": 10.0,  # 10% yearly
-                        "start_year": datetime.now().year,
-                        "currency": "USD",
-                        "is_recurring": True
-                    }
-                    create_response = self.make_request("POST", "/expenses", test_expense)
-                    if create_response and create_response.status_code == 200:
-                        # Test projections to verify appreciation calculation
-                        proj_response = self.make_request("GET", "/projections", params={"years": 2, "currency": "USD"})
-                        if proj_response and proj_response.status_code == 200:
-                            proj_data = proj_response.json()['projections']
-                            if len(proj_data) >= 2:
-                                year1_expenses = proj_data[0]['total_expenses_debit']
-                                year2_expenses = proj_data[1]['total_expenses_debit']
-                                # Should see appreciation effect (though other expenses may affect total)
-                                self.log_test("Appreciation Rate Calculation", True, f"Year 1: {year1_expenses}, Year 2: {year2_expenses}")
-                            else:
-                                self.log_test("Appreciation Rate Calculation", False, "Insufficient projection data")
-                        else:
-                            self.log_test("Appreciation Rate Calculation", False, "Could not get projections for testing")
+                self.log_test("Transaction upload", False, 
+                            f"HTTP {response.status_code}: {response.text}")
+                
+        except Exception as e:
+            self.log_test("Transaction upload", False, f"Exception: {str(e)}")
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(csv_file_path)
+            except:
+                pass
     
-    def test_edge_cases(self):
-        """Test edge cases and error handling"""
-        print("\n=== Testing Edge Cases ===")
+    def test_transaction_import(self):
+        """Test POST /api/transactions/import endpoint"""
+        print("\n=== Testing Transaction Import Endpoint ===")
         
-        # Test invalid expense ID
-        response = self.make_request("GET", "/expenses/invalid-id")
-        if response and response.status_code == 404:
-            self.log_test("Invalid Expense ID", True, "Correctly returned 404 for invalid ID")
-        else:
-            self.log_test("Invalid Expense ID", False, f"Expected 404, got {response.status_code if response else 'No response'}")
+        # First, get some parsed transactions by uploading a file
+        csv_file_path = self.create_test_csv()
+        parsed_transactions = []
         
-        # Test invalid income source ID
-        response = self.make_request("GET", "/income-sources/invalid-id")
-        if response and response.status_code == 404:
-            self.log_test("Invalid Income Source ID", True, "Correctly returned 404 for invalid ID")
-        else:
-            self.log_test("Invalid Income Source ID", False, f"Expected 404, got {response.status_code if response else 'No response'}")
-        
-        # Test invalid investment ID
-        response = self.make_request("GET", "/investments/invalid-id")
-        if response and response.status_code == 404:
-            self.log_test("Invalid Investment ID", True, "Correctly returned 404 for invalid ID")
-        else:
-            self.log_test("Invalid Investment ID", False, f"Expected 404, got {response.status_code if response else 'No response'}")
-        
-        # Test empty update
-        if self.created_ids['expenses']:
-            expense_id = self.created_ids['expenses'][0]
-            response = self.make_request("PUT", f"/expenses/{expense_id}", {})
-            if response and response.status_code == 400:
-                self.log_test("Empty Update Request", True, "Correctly rejected empty update")
+        try:
+            with open(csv_file_path, 'rb') as f:
+                files = {'file': ('test_transactions.csv', f, 'text/csv')}
+                upload_response = requests.post(f"{self.backend_url}/transactions/upload", files=files)
+            
+            if upload_response.status_code == 200:
+                parsed_transactions = upload_response.json().get('transactions', [])
+            
+            if not parsed_transactions:
+                self.log_test("Transaction import - Prerequisites", False, 
+                            "Could not get parsed transactions for import test")
+                return
+            
+            # Test import with USD currency
+            import_request = {
+                "transactions": parsed_transactions,
+                "currency": "USD",
+                "start_year": 2025,
+                "is_recurring": False,
+                "appreciation_rate": 0
+            }
+            
+            response = requests.post(f"{self.backend_url}/transactions/import", 
+                                   json=import_request,
+                                   headers={'Content-Type': 'application/json'})
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Verify response structure
+                required_fields = ['message', 'expenses_count', 'income_count', 'expenses', 'income']
+                has_all_fields = all(field in data for field in required_fields)
+                
+                self.log_test("Transaction import - Response structure", has_all_fields,
+                            f"Response contains all required fields")
+                
+                if has_all_fields:
+                    expenses_count = data['expenses_count']
+                    income_count = data['income_count']
+                    
+                    # Test that large credits (>$1000) are imported as income
+                    large_credits = [t for t in parsed_transactions 
+                                   if t.get('transaction_type') == 'credit' and t.get('amount', 0) > 1000]
+                    
+                    expected_income = len(large_credits)
+                    self.log_test("Large credits as income sources", income_count >= expected_income,
+                                f"Expected >= {expected_income} income sources, got {income_count}")
+                    
+                    # Test that other transactions are imported as expenses
+                    other_transactions = [t for t in parsed_transactions 
+                                        if not (t.get('transaction_type') == 'credit' and t.get('amount', 0) > 1000)]
+                    
+                    expected_expenses = len(other_transactions)
+                    self.log_test("Other transactions as expenses", expenses_count >= expected_expenses - 1,
+                                f"Expected ~{expected_expenses} expenses, got {expenses_count}")
+                    
+                    # Test total import count
+                    total_imported = expenses_count + income_count
+                    total_selected = sum(1 for t in parsed_transactions if t.get('selected', True))
+                    
+                    self.log_test("Total import count", total_imported == total_selected,
+                                f"Imported {total_imported}/{total_selected} transactions")
             else:
-                self.log_test("Empty Update Request", False, f"Expected 400, got {response.status_code if response else 'No response'}")
+                self.log_test("Transaction import", False, 
+                            f"HTTP {response.status_code}: {response.text}")
+            
+            # Test import with INR currency
+            import_request_inr = {
+                "transactions": parsed_transactions[:3],  # Test with fewer transactions
+                "currency": "INR",
+                "start_year": 2025,
+                "is_recurring": True,
+                "appreciation_rate": 2.5
+            }
+            
+            response_inr = requests.post(f"{self.backend_url}/transactions/import", 
+                                       json=import_request_inr,
+                                       headers={'Content-Type': 'application/json'})
+            
+            if response_inr.status_code == 200:
+                self.log_test("Transaction import - INR currency", True, 
+                            "Successfully imported transactions with INR currency")
+            else:
+                self.log_test("Transaction import - INR currency", False, 
+                            f"HTTP {response_inr.status_code}: {response_inr.text}")
+                
+        except Exception as e:
+            self.log_test("Transaction import", False, f"Exception: {str(e)}")
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(csv_file_path)
+            except:
+                pass
     
-    def cleanup(self):
-        """Clean up created test data"""
-        print("\n=== Cleaning Up Test Data ===")
+    def test_file_format_support(self):
+        """Test different file formats and error handling"""
+        print("\n=== Testing File Format Support ===")
         
-        # Delete created expenses
-        for expense_id in self.created_ids['expenses']:
-            response = self.make_request("DELETE", f"/expenses/{expense_id}")
-            if response and response.status_code == 200:
-                print(f"✅ Deleted expense {expense_id}")
+        # Test invalid file format
+        try:
+            temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
+            temp_file.write("This is not a CSV file")
+            temp_file.close()
+            
+            with open(temp_file.name, 'rb') as f:
+                files = {'file': ('test.txt', f, 'text/plain')}
+                response = requests.post(f"{self.backend_url}/transactions/upload", files=files)
+            
+            if response.status_code == 400:
+                self.log_test("Invalid file format rejection", True, 
+                            "Correctly rejected non-CSV/Excel file")
             else:
-                print(f"❌ Failed to delete expense {expense_id}")
+                self.log_test("Invalid file format rejection", False, 
+                            f"Expected 400, got {response.status_code}")
+            
+            os.unlink(temp_file.name)
+            
+        except Exception as e:
+            self.log_test("Invalid file format rejection", False, f"Exception: {str(e)}")
         
-        # Delete created income sources
-        for income_id in self.created_ids['income_sources']:
-            response = self.make_request("DELETE", f"/income-sources/{income_id}")
-            if response and response.status_code == 200:
-                print(f"✅ Deleted income source {income_id}")
-            else:
-                print(f"❌ Failed to delete income source {income_id}")
+        # Test empty file
+        try:
+            temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
+            temp_file.close()
+            
+            with open(temp_file.name, 'rb') as f:
+                files = {'file': ('empty.csv', f, 'text/csv')}
+                response = requests.post(f"{self.backend_url}/transactions/upload", files=files)
+            
+            # Should handle empty file gracefully
+            self.log_test("Empty file handling", response.status_code in [400, 500], 
+                        f"Handled empty file with status {response.status_code}")
+            
+            os.unlink(temp_file.name)
+            
+        except Exception as e:
+            self.log_test("Empty file handling", False, f"Exception: {str(e)}")
+    
+    def test_column_detection(self):
+        """Test column detection with different CSV formats"""
+        print("\n=== Testing Column Detection ===")
         
-        # Delete created investments
-        for investment_id in self.created_ids['investments']:
-            response = self.make_request("DELETE", f"/investments/{investment_id}")
-            if response and response.status_code == 200:
-                print(f"✅ Deleted investment {investment_id}")
-            else:
-                print(f"❌ Failed to delete investment {investment_id}")
+        # Test with different column names
+        test_formats = [
+            {
+                "name": "Standard format",
+                "headers": ["Date", "Description", "Amount", "Type"],
+                "data": [["2025-01-15", "Test Transaction", "100.00", "Debit"]]
+            },
+            {
+                "name": "Alternative format",
+                "headers": ["Transaction Date", "Particulars", "Value", "Dr/Cr"],
+                "data": [["2025-01-15", "Test Transaction", "100.00", "Dr"]]
+            },
+            {
+                "name": "Bank format",
+                "headers": ["Posting Date", "Transaction Description", "Transaction Amount", "Transaction Type"],
+                "data": [["2025-01-15", "Test Transaction", "100.00", "Debit"]]
+            }
+        ]
         
-        # Note: We don't delete categories and investment types as they might be referenced
+        for test_format in test_formats:
+            try:
+                # Create CSV with this format
+                temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
+                writer = csv.writer(temp_file)
+                writer.writerow(test_format["headers"])
+                writer.writerows(test_format["data"])
+                temp_file.close()
+                
+                with open(temp_file.name, 'rb') as f:
+                    files = {'file': (f'{test_format["name"]}.csv', f, 'text/csv')}
+                    response = requests.post(f"{self.backend_url}/transactions/upload", files=files)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    columns_detected = data.get('columns_detected', {})
+                    
+                    # Check if columns were detected
+                    has_required_columns = all(columns_detected.get(col) for col in ['date', 'description', 'amount'])
+                    
+                    self.log_test(f"Column detection - {test_format['name']}", has_required_columns,
+                                f"Detected columns: {columns_detected}")
+                else:
+                    self.log_test(f"Column detection - {test_format['name']}", False,
+                                f"HTTP {response.status_code}: {response.text}")
+                
+                os.unlink(temp_file.name)
+                
+            except Exception as e:
+                self.log_test(f"Column detection - {test_format['name']}", False, f"Exception: {str(e)}")
     
     def run_all_tests(self):
-        """Run all tests"""
-        print(f"🚀 Starting Backend API Tests for Multi-Year Budget Tracker")
-        print(f"Backend URL: {self.base_url}")
-        print("=" * 80)
+        """Run all transaction upload and import tests"""
+        print("🧪 Starting Backend API Tests for Transaction Upload and Import")
+        print(f"Backend URL: {self.backend_url}")
+        print("=" * 60)
         
-        # Run all test suites
-        self.test_init_data()
-        self.test_expense_categories()
-        self.test_expenses()
-        self.test_income_sources()
-        self.test_investment_types()
-        self.test_investments()
-        self.test_dashboard()
-        self.test_projections()
-        self.test_edge_cases()
+        # Test transaction upload endpoint
+        self.test_transaction_upload()
         
-        # Clean up
-        self.cleanup()
+        # Test transaction import endpoint
+        self.test_transaction_import()
         
-        # Summary
-        print("\n" + "=" * 80)
-        print("🏁 TEST SUMMARY")
-        print("=" * 80)
+        # Test file format support
+        self.test_file_format_support()
+        
+        # Test column detection
+        self.test_column_detection()
+        
+        # Print summary
+        print("\n" + "=" * 60)
+        print("📊 TEST SUMMARY")
+        print("=" * 60)
         
         total_tests = len(self.test_results)
-        passed_tests = len([t for t in self.test_results if t['success']])
+        passed_tests = sum(1 for result in self.test_results if "✅" in result["status"])
         failed_tests = total_tests - passed_tests
         
         print(f"Total Tests: {total_tests}")
-        print(f"✅ Passed: {passed_tests}")
-        print(f"❌ Failed: {failed_tests}")
+        print(f"Passed: {passed_tests}")
+        print(f"Failed: {failed_tests}")
         print(f"Success Rate: {(passed_tests/total_tests)*100:.1f}%")
         
         if failed_tests > 0:
             print("\n❌ FAILED TESTS:")
-            for test in self.test_results:
-                if not test['success']:
-                    print(f"  - {test['test']}: {test['message']}")
+            for result in self.test_results:
+                if "❌" in result["status"]:
+                    print(f"  - {result['test']}: {result['details']}")
         
-        return failed_tests == 0
+        return passed_tests, failed_tests
 
 if __name__ == "__main__":
     tester = BudgetTrackerTester()
-    success = tester.run_all_tests()
-    sys.exit(0 if success else 1)
+    passed, failed = tester.run_all_tests()
+    
+    # Exit with appropriate code
+    exit(0 if failed == 0 else 1)

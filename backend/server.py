@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,10 +6,13 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime
 from enum import Enum
+import pandas as pd
+import io
+import re
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -163,6 +166,41 @@ class Settings(BaseModel):
 class SettingsUpdate(BaseModel):
     projection_years: Optional[int] = None
     default_currency: Optional[Currency] = None
+
+# Transaction Import Models
+class ParsedTransaction(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    date: str
+    description: str
+    amount: float
+    transaction_type: TransactionType
+    suggested_category_id: str
+    suggested_category_name: str
+    confidence: float = 0.0  # Categorization confidence
+    selected: bool = True  # Whether to import this transaction
+
+class TransactionImportRequest(BaseModel):
+    transactions: List[Dict[str, Any]]
+    currency: Currency = Currency.USD
+    start_year: int = Field(default_factory=lambda: datetime.now().year)
+    is_recurring: bool = False
+    appreciation_rate: float = 0.0
+
+# Category keyword mappings for auto-categorization
+CATEGORY_KEYWORDS = {
+    "Rent/Mortgage": ["rent", "mortgage", "lease", "housing", "apartment", "property"],
+    "Utilities": ["electric", "electricity", "gas", "water", "utility", "utilities", "power", "energy", "sewage"],
+    "Groceries": ["grocery", "groceries", "supermarket", "walmart", "target", "costco", "whole foods", "trader joe", "kroger", "safeway", "publix", "aldi", "food", "market"],
+    "Transportation": ["uber", "lyft", "taxi", "cab", "gas station", "fuel", "petrol", "parking", "toll", "transit", "metro", "bus", "train", "subway", "automotive", "car wash"],
+    "Insurance": ["insurance", "geico", "state farm", "allstate", "progressive", "liberty mutual", "coverage", "premium"],
+    "Healthcare": ["pharmacy", "cvs", "walgreens", "hospital", "clinic", "doctor", "medical", "health", "dental", "vision", "prescription", "medicine"],
+    "Entertainment": ["netflix", "hulu", "disney", "spotify", "apple music", "youtube", "movie", "cinema", "theater", "concert", "game", "gaming", "playstation", "xbox", "steam"],
+    "Dining Out": ["restaurant", "cafe", "coffee", "starbucks", "mcdonald", "burger", "pizza", "doordash", "grubhub", "uber eats", "postmates", "chipotle", "subway", "wendy", "taco bell", "kfc", "dining"],
+    "Education": ["tuition", "school", "university", "college", "course", "udemy", "coursera", "book", "education", "learning", "training"],
+    "Shopping": ["amazon", "ebay", "etsy", "shop", "store", "mall", "clothing", "apparel", "fashion", "nike", "adidas", "zara", "h&m", "best buy", "apple store"],
+    "Subscriptions": ["subscription", "membership", "monthly", "annual", "recurring", "prime", "gym", "fitness", "magazine"],
+    "Other": []
+}
 
 # Default categories and types
 DEFAULT_EXPENSE_CATEGORIES = [
@@ -574,6 +612,333 @@ async def get_dashboard(currency: Currency = Currency.USD):
         },
         "expenses_by_category": {k: round(v, 2) for k, v in expenses_by_category.items()}
     }
+
+# Helper function for auto-categorization
+async def categorize_transaction(description: str) -> tuple:
+    """Auto-categorize a transaction based on description keywords"""
+    description_lower = description.lower()
+    
+    # Get categories from database
+    categories = await db.expense_categories.find().to_list(100)
+    category_map = {cat["name"]: cat for cat in categories}
+    
+    best_match = None
+    best_confidence = 0.0
+    
+    for category_name, keywords in CATEGORY_KEYWORDS.items():
+        if category_name not in category_map:
+            continue
+            
+        for keyword in keywords:
+            if keyword.lower() in description_lower:
+                # Calculate confidence based on keyword match
+                confidence = len(keyword) / len(description_lower) * 100
+                confidence = min(confidence * 2, 95)  # Cap at 95%
+                
+                if confidence > best_confidence:
+                    best_confidence = confidence
+                    best_match = category_map[category_name]
+    
+    # Default to "Other" if no match found
+    if not best_match:
+        best_match = category_map.get("Other", categories[0] if categories else None)
+        best_confidence = 10.0
+    
+    return best_match, best_confidence
+
+# Transaction Upload Endpoints
+@api_router.post("/transactions/upload")
+async def upload_bank_statement(file: UploadFile = File(...)):
+    """Upload and parse a bank statement (CSV or Excel)"""
+    
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    # Check file extension
+    file_ext = file.filename.lower().split('.')[-1]
+    if file_ext not in ['csv', 'xlsx', 'xls']:
+        raise HTTPException(status_code=400, detail="Only CSV and Excel files are supported")
+    
+    try:
+        contents = await file.read()
+        
+        # Parse file based on extension
+        if file_ext == 'csv':
+            df = pd.read_csv(io.BytesIO(contents))
+        else:
+            df = pd.read_excel(io.BytesIO(contents))
+        
+        # Normalize column names (lowercase and strip whitespace)
+        df.columns = df.columns.str.lower().str.strip()
+        
+        # Try to identify columns
+        date_col = None
+        desc_col = None
+        amount_col = None
+        type_col = None
+        
+        # Common column name variations
+        date_variations = ['date', 'transaction date', 'trans date', 'posting date', 'value date']
+        desc_variations = ['description', 'desc', 'narrative', 'particulars', 'details', 'memo', 'transaction description']
+        amount_variations = ['amount', 'value', 'sum', 'transaction amount', 'debit/credit']
+        type_variations = ['type', 'transaction type', 'trans type', 'dr/cr', 'debit/credit']
+        
+        for col in df.columns:
+            col_lower = col.lower()
+            if not date_col and any(v in col_lower for v in date_variations):
+                date_col = col
+            if not desc_col and any(v in col_lower for v in desc_variations):
+                desc_col = col
+            if not amount_col and any(v in col_lower for v in amount_variations):
+                amount_col = col
+            if not type_col and any(v in col_lower for v in type_variations):
+                type_col = col
+        
+        # Check if we have required columns
+        if not date_col:
+            # Try first column as date
+            date_col = df.columns[0] if len(df.columns) > 0 else None
+        if not desc_col:
+            # Try second column as description
+            desc_col = df.columns[1] if len(df.columns) > 1 else None
+        if not amount_col:
+            # Try third column as amount
+            amount_col = df.columns[2] if len(df.columns) > 2 else None
+        
+        if not all([date_col, desc_col, amount_col]):
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Could not identify required columns. Found: {list(df.columns)}. Expected: date, description, amount"
+            )
+        
+        # Parse transactions
+        parsed_transactions = []
+        
+        for idx, row in df.iterrows():
+            try:
+                # Get date
+                date_val = str(row[date_col])
+                
+                # Get description
+                description = str(row[desc_col]) if pd.notna(row[desc_col]) else "Unknown"
+                
+                # Get amount and determine transaction type
+                amount_raw = row[amount_col]
+                if pd.isna(amount_raw):
+                    continue
+                    
+                # Clean amount string
+                amount_str = str(amount_raw).replace(',', '').replace('$', '').replace('₹', '').strip()
+                
+                # Handle parentheses as negative
+                if '(' in amount_str and ')' in amount_str:
+                    amount_str = amount_str.replace('(', '-').replace(')', '')
+                
+                try:
+                    amount = float(amount_str)
+                except ValueError:
+                    continue
+                
+                # Determine transaction type
+                if type_col and pd.notna(row.get(type_col)):
+                    type_val = str(row[type_col]).lower()
+                    if any(t in type_val for t in ['credit', 'cr', 'deposit', 'income']):
+                        trans_type = TransactionType.CREDIT
+                    else:
+                        trans_type = TransactionType.DEBIT
+                else:
+                    # Infer from amount sign
+                    trans_type = TransactionType.CREDIT if amount > 0 else TransactionType.DEBIT
+                
+                amount = abs(amount)
+                
+                # Auto-categorize
+                category, confidence = await categorize_transaction(description)
+                
+                parsed_transactions.append({
+                    "id": str(uuid.uuid4()),
+                    "date": date_val,
+                    "description": description,
+                    "amount": round(amount, 2),
+                    "transaction_type": trans_type,
+                    "suggested_category_id": category["id"] if category else "",
+                    "suggested_category_name": category["name"] if category else "Other",
+                    "confidence": round(confidence, 1),
+                    "selected": True
+                })
+                
+            except Exception as e:
+                logger.warning(f"Error parsing row {idx}: {e}")
+                continue
+        
+        if not parsed_transactions:
+            raise HTTPException(status_code=400, detail="No valid transactions found in file")
+        
+        return {
+            "message": f"Successfully parsed {len(parsed_transactions)} transactions",
+            "transactions": parsed_transactions,
+            "columns_detected": {
+                "date": date_col,
+                "description": desc_col,
+                "amount": amount_col,
+                "type": type_col
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing file: {e}")
+        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
+
+@api_router.post("/transactions/import")
+async def import_transactions(request: TransactionImportRequest):
+    """Import parsed transactions as expenses or income"""
+    
+    imported_expenses = []
+    imported_income = []
+    
+    for trans in request.transactions:
+        if not trans.get("selected", True):
+            continue
+        
+        trans_type = trans.get("transaction_type", "debit")
+        if isinstance(trans_type, str):
+            trans_type = TransactionType.CREDIT if trans_type.lower() == "credit" else TransactionType.DEBIT
+        
+        if trans_type == TransactionType.CREDIT and trans.get("amount", 0) > 1000:
+            # Large credits might be income - create as income source
+            income = IncomeSource(
+                name=trans.get("description", "Imported Income")[:100],
+                amount=trans.get("amount", 0),
+                increment_rate=0,
+                increment_type=IncrementType.PERCENTAGE,
+                start_year=request.start_year,
+                currency=request.currency,
+                is_active=True
+            )
+            await db.income_sources.insert_one(income.dict())
+            imported_income.append(income.dict())
+        else:
+            # Create as expense
+            expense = Expense(
+                name=trans.get("description", "Imported Transaction")[:100],
+                category_id=trans.get("category_id", trans.get("suggested_category_id", "")),
+                category_name=trans.get("category_name", trans.get("suggested_category_name", "Other")),
+                amount=trans.get("amount", 0),
+                transaction_type=trans_type,
+                appreciation_rate=request.appreciation_rate,
+                start_year=request.start_year,
+                currency=request.currency,
+                is_recurring=request.is_recurring
+            )
+            await db.expenses.insert_one(expense.dict())
+            imported_expenses.append(expense.dict())
+    
+    return {
+        "message": f"Successfully imported {len(imported_expenses)} expenses and {len(imported_income)} income sources",
+        "expenses_count": len(imported_expenses),
+        "income_count": len(imported_income),
+        "expenses": imported_expenses,
+        "income": imported_income
+    }
+
+@api_router.post("/transactions/import-direct")
+async def import_transactions_direct(
+    file: UploadFile = File(...),
+    currency: Currency = Currency.USD,
+    start_year: int = None,
+    is_recurring: bool = False,
+    appreciation_rate: float = 0.0
+):
+    """Upload and directly import transactions without preview"""
+    
+    if start_year is None:
+        start_year = datetime.now().year
+    
+    # First parse the file
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    file_ext = file.filename.lower().split('.')[-1]
+    if file_ext not in ['csv', 'xlsx', 'xls']:
+        raise HTTPException(status_code=400, detail="Only CSV and Excel files are supported")
+    
+    try:
+        contents = await file.read()
+        
+        if file_ext == 'csv':
+            df = pd.read_csv(io.BytesIO(contents))
+        else:
+            df = pd.read_excel(io.BytesIO(contents))
+        
+        df.columns = df.columns.str.lower().str.strip()
+        
+        # Find columns (simplified)
+        date_col = next((c for c in df.columns if 'date' in c.lower()), df.columns[0] if len(df.columns) > 0 else None)
+        desc_col = next((c for c in df.columns if any(d in c.lower() for d in ['desc', 'narr', 'part', 'memo'])), df.columns[1] if len(df.columns) > 1 else None)
+        amount_col = next((c for c in df.columns if 'amount' in c.lower()), df.columns[2] if len(df.columns) > 2 else None)
+        type_col = next((c for c in df.columns if 'type' in c.lower()), None)
+        
+        if not all([date_col, desc_col, amount_col]):
+            raise HTTPException(status_code=400, detail="Could not identify required columns")
+        
+        imported_count = 0
+        
+        for idx, row in df.iterrows():
+            try:
+                description = str(row[desc_col]) if pd.notna(row[desc_col]) else "Unknown"
+                amount_raw = row[amount_col]
+                
+                if pd.isna(amount_raw):
+                    continue
+                
+                amount_str = str(amount_raw).replace(',', '').replace('$', '').replace('₹', '').strip()
+                if '(' in amount_str:
+                    amount_str = amount_str.replace('(', '-').replace(')', '')
+                
+                amount = float(amount_str)
+                
+                # Determine type
+                if type_col and pd.notna(row.get(type_col)):
+                    type_val = str(row[type_col]).lower()
+                    trans_type = TransactionType.CREDIT if any(t in type_val for t in ['credit', 'cr', 'deposit']) else TransactionType.DEBIT
+                else:
+                    trans_type = TransactionType.CREDIT if amount > 0 else TransactionType.DEBIT
+                
+                amount = abs(amount)
+                
+                # Categorize
+                category, _ = await categorize_transaction(description)
+                
+                # Create expense
+                expense = Expense(
+                    name=description[:100],
+                    category_id=category["id"] if category else "",
+                    category_name=category["name"] if category else "Other",
+                    amount=amount,
+                    transaction_type=trans_type,
+                    appreciation_rate=appreciation_rate,
+                    start_year=start_year,
+                    currency=currency,
+                    is_recurring=is_recurring
+                )
+                await db.expenses.insert_one(expense.dict())
+                imported_count += 1
+                
+            except Exception as e:
+                logger.warning(f"Error importing row {idx}: {e}")
+                continue
+        
+        return {
+            "message": f"Successfully imported {imported_count} transactions",
+            "count": imported_count
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
 # Include the router in the main app
 app.include_router(api_router)

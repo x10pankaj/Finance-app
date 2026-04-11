@@ -138,3 +138,51 @@ export const getProjections = async (years: number = 5, currency: Currency = 'US
   const response = await api.get('/projections', { params: { years, currency } });
   return response.data;
 };
+
+// Transaction Upload
+export interface ParsedTransaction {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  transaction_type: 'credit' | 'debit';
+  suggested_category_id: string;
+  suggested_category_name: string;
+  confidence: number;
+  selected: boolean;
+  category_id?: string;
+  category_name?: string;
+}
+
+export interface UploadResponse {
+  message: string;
+  transactions: ParsedTransaction[];
+  columns_detected: {
+    date: string;
+    description: string;
+    amount: string;
+    type: string | null;
+  };
+}
+
+export interface ImportRequest {
+  transactions: ParsedTransaction[];
+  currency: Currency;
+  start_year: number;
+  is_recurring: boolean;
+  appreciation_rate: number;
+}
+
+export const uploadBankStatement = async (file: FormData): Promise<UploadResponse> => {
+  const response = await api.post('/transactions/upload', file, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const importTransactions = async (data: ImportRequest): Promise<any> => {
+  const response = await api.post('/transactions/import', data);
+  return response.data;
+};
