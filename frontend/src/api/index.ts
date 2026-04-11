@@ -127,6 +127,27 @@ export const updateSettings = async (data: Partial<Settings>): Promise<Settings>
   return response.data;
 };
 
+// Auth
+export interface AuthStatus {
+  password_set: boolean;
+  authenticated: boolean;
+}
+
+export const getAuthStatus = async (): Promise<AuthStatus> => {
+  const response = await api.get('/auth/status');
+  return response.data;
+};
+
+export const setupPassword = async (password: string): Promise<any> => {
+  const response = await api.post('/auth/setup', { password });
+  return response.data;
+};
+
+export const login = async (password: string): Promise<any> => {
+  const response = await api.post('/auth/login', { password });
+  return response.data;
+};
+
 // Dashboard
 export const getDashboard = async (currency: Currency = 'USD'): Promise<DashboardData> => {
   const response = await api.get('/dashboard', { params: { currency } });

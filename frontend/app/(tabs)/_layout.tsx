@@ -1,16 +1,11 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { initializeData } from '../../src/api';
 import { useAppStore } from '../../src/store';
 
 export default function TabLayout() {
   const { theme } = useAppStore();
   const c = theme.colors;
-
-  useEffect(() => {
-    initializeData().catch(console.error);
-  }, []);
 
   return (
     <Tabs
