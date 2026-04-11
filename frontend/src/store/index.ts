@@ -5,6 +5,8 @@ import { ThemeMode, Theme, getTheme } from '../theme';
 
 const STORAGE_KEY_THEME = 'budget_tracker_theme';
 const STORAGE_KEY_CURRENCY = 'budget_tracker_currency';
+const STORAGE_KEY_BIOMETRIC = 'budget_tracker_biometric';
+const STORAGE_KEY_AUTOLOCK = 'budget_tracker_autolock_mins';
 
 interface AppState {
   currency: Currency;
@@ -12,10 +14,16 @@ interface AppState {
   themeMode: ThemeMode;
   theme: Theme;
   hydrated: boolean;
+  biometricEnabled: boolean;
+  autoLockMinutes: number; // 0 = disabled
+  lastActiveTimestamp: number;
   setCurrency: (currency: Currency) => void;
   setProjectionYears: (years: number) => void;
   toggleTheme: () => void;
   setThemeMode: (mode: ThemeMode) => void;
+  setBiometricEnabled: (enabled: boolean) => void;
+  setAutoLockMinutes: (mins: number) => void;
+  touchActivity: () => void;
   hydrate: () => Promise<void>;
 }
 
@@ -25,6 +33,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   themeMode: 'dark',
   theme: getTheme('dark'),
   hydrated: false,
+  biometricEnabled: false,
+  autoLockMinutes: 5,
+  lastActiveTimestamp: Date.now(),
   setCurrency: (currency) => {
     set({ currency });
     AsyncStorage.setItem(STORAGE_KEY_CURRENCY, currency).catch(() => {});
@@ -39,11 +50,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ themeMode: mode, theme: getTheme(mode) });
     AsyncStorage.setItem(STORAGE_KEY_THEME, mode).catch(() => {});
   },
+  setBiometricEnabled: (enabled) => {
+    set({ biometricEnabled: enabled });
+    AsyncStorage.setItem(STORAGE_KEY_BIOMETRIC, enabled ? '1' : '0').catch(() => {});
+  },
+  setAutoLockMinutes: (mins) => {
+    set({ autoLockMinutes: mins });
+    AsyncStorage.setItem(STORAGE_KEY_AUTOLOCK, String(mins)).catch(() => {});
+  },
+  touchActivity: () => {
+    set({ lastActiveTimestamp: Date.now() });
+  },
   hydrate: async () => {
     try {
-      const [savedTheme, savedCurrency] = await Promise.all([
+      const [savedTheme, savedCurrency, savedBio, savedLock] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEY_THEME),
         AsyncStorage.getItem(STORAGE_KEY_CURRENCY),
+        AsyncStorage.getItem(STORAGE_KEY_BIOMETRIC),
+        AsyncStorage.getItem(STORAGE_KEY_AUTOLOCK),
       ]);
       const updates: Partial<AppState> = { hydrated: true };
       if (savedTheme === 'dark' || savedTheme === 'light') {
@@ -52,6 +76,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       if (savedCurrency === 'USD' || savedCurrency === 'INR') {
         updates.currency = savedCurrency;
+      }
+      if (savedBio !== null) {
+        updates.biometricEnabled = savedBio === '1';
+      }
+      if (savedLock !== null) {
+        updates.autoLockMinutes = parseInt(savedLock) || 5;
       }
       set(updates);
     } catch {
