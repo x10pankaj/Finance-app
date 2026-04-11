@@ -29,7 +29,8 @@ import { Card } from '../../src/components/Card';
 const currentYear = new Date().getFullYear();
 
 export default function IncomeScreen() {
-  const { currency } = useAppStore();
+  const { currency, theme } = useAppStore();
+  const c = theme.colors;
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -202,18 +203,18 @@ export default function IncomeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={[styles.loadingText, { color: c.textSecondary }]}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Income Sources</Text>
+        <Text style={[styles.title, { color: c.text }]}>Income Sources</Text>
         <CurrencyToggle />
       </View>
 
@@ -311,7 +312,7 @@ export default function IncomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0c0c0c',
+    
   },
   loadingContainer: {
     flex: 1,

@@ -30,7 +30,8 @@ import { Card } from '../../src/components/Card';
 const currentYear = new Date().getFullYear();
 
 export default function InvestmentsScreen() {
-  const { currency } = useAppStore();
+  const { currency, theme } = useAppStore();
+  const c = theme.colors;
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [investmentTypes, setInvestmentTypes] = useState<InvestmentType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -233,7 +234,7 @@ export default function InvestmentsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
@@ -242,9 +243,9 @@ export default function InvestmentsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Investments</Text>
+        <Text style={[styles.title, { color: c.text }]}>Investments</Text>
         <CurrencyToggle />
       </View>
 
@@ -342,7 +343,7 @@ export default function InvestmentsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0c0c0c',
+    
   },
   loadingContainer: {
     flex: 1,

@@ -1,11 +1,6 @@
 import React from 'react';
-import {
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  ViewStyle,
-} from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle } from 'react-native';
+import { useAppStore } from '../store';
 
 interface ButtonProps {
   title: string;
@@ -16,31 +11,22 @@ interface ButtonProps {
   style?: ViewStyle;
 }
 
-export const Button: React.FC<ButtonProps> = ({
-  title,
-  onPress,
-  variant = 'primary',
-  loading = false,
-  disabled = false,
-  style,
-}) => {
-  const getButtonStyle = () => {
+export const Button: React.FC<ButtonProps> = ({ title, onPress, variant = 'primary', loading = false, disabled = false, style }) => {
+  const { theme } = useAppStore();
+  const c = theme.colors;
+
+  const getBg = () => {
     switch (variant) {
-      case 'secondary':
-        return styles.secondaryButton;
-      case 'danger':
-        return styles.dangerButton;
-      default:
-        return styles.primaryButton;
+      case 'secondary': return 'transparent';
+      case 'danger': return '#f44336';
+      default: return c.accent;
     }
   };
 
-  const getTextStyle = () => {
+  const getTextColor = () => {
     switch (variant) {
-      case 'secondary':
-        return styles.secondaryText;
-      default:
-        return styles.buttonText;
+      case 'secondary': return c.accent;
+      default: return '#fff';
     }
   };
 
@@ -48,52 +34,21 @@ export const Button: React.FC<ButtonProps> = ({
     <TouchableOpacity
       style={[
         styles.button,
-        getButtonStyle(),
+        { backgroundColor: getBg() },
+        variant === 'secondary' && { borderWidth: 1, borderColor: c.accent },
         disabled && styles.disabled,
         style,
       ]}
       onPress={onPress}
       disabled={disabled || loading}
     >
-      {loading ? (
-        <ActivityIndicator color="#fff" />
-      ) : (
-        <Text style={getTextStyle()}>{title}</Text>
-      )}
+      {loading ? <ActivityIndicator color="#fff" /> : <Text style={[styles.buttonText, { color: getTextColor() }]}>{title}</Text>}
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  button: {
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 50,
-  },
-  primaryButton: {
-    backgroundColor: '#4CAF50',
-  },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#4CAF50',
-  },
-  dangerButton: {
-    backgroundColor: '#f44336',
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryText: {
-    color: '#4CAF50',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  button: { padding: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', minHeight: 50 },
+  disabled: { opacity: 0.5 },
+  buttonText: { fontSize: 16, fontWeight: '600' },
 });

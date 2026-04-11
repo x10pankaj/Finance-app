@@ -4,25 +4,27 @@ import { useAppStore } from '../store';
 import { Currency } from '../types';
 
 export const CurrencyToggle: React.FC = () => {
-  const { currency, setCurrency } = useAppStore();
+  const { currency, setCurrency, theme } = useAppStore();
+  const c = theme.colors;
 
   const currencies: Currency[] = ['USD', 'INR'];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: c.surface }]}>
       {currencies.map((curr) => (
         <TouchableOpacity
           key={curr}
           style={[
             styles.button,
-            currency === curr && styles.activeButton,
+            currency === curr && { backgroundColor: c.accent },
           ]}
           onPress={() => setCurrency(curr)}
         >
           <Text
             style={[
               styles.buttonText,
-              currency === curr && styles.activeButtonText,
+              { color: c.textSecondary },
+              currency === curr && { color: '#fff' },
             ]}
           >
             {curr === 'USD' ? '$' : '₹'} {curr}
@@ -36,7 +38,6 @@ export const CurrencyToggle: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#2a2a2a',
     borderRadius: 8,
     padding: 4,
   },
@@ -45,15 +46,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 6,
   },
-  activeButton: {
-    backgroundColor: '#4CAF50',
-  },
   buttonText: {
-    color: '#888',
     fontSize: 14,
     fontWeight: '600',
-  },
-  activeButtonText: {
-    color: '#fff',
   },
 });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppStore } from '../store';
 
 interface CardProps {
   children: React.ReactNode;
@@ -9,15 +10,19 @@ interface CardProps {
 }
 
 export const Card: React.FC<CardProps> = ({ children, style, onPress }) => {
+  const { theme } = useAppStore();
+  const c = theme.colors;
+  const cardStyle = [{ backgroundColor: c.card, borderRadius: 12, padding: 16, marginBottom: 12 }, style];
+
   if (onPress) {
     return (
-      <TouchableOpacity style={[styles.card, style]} onPress={onPress}>
+      <TouchableOpacity style={cardStyle} onPress={onPress}>
         {children}
       </TouchableOpacity>
     );
   }
 
-  return <View style={[styles.card, style]}>{children}</View>;
+  return <View style={cardStyle}>{children}</View>;
 };
 
 interface StatCardProps {
@@ -35,58 +40,24 @@ export const StatCard: React.FC<StatCardProps> = ({
   color = '#4CAF50',
   trend,
 }) => {
-  const getTrendIcon = () => {
-    switch (trend) {
-      case 'up':
-        return 'trending-up';
-      case 'down':
-        return 'trending-down';
-      default:
-        return null;
-    }
-  };
-
-  const getTrendColor = () => {
-    switch (trend) {
-      case 'up':
-        return '#4CAF50';
-      case 'down':
-        return '#f44336';
-      default:
-        return '#888';
-    }
-  };
+  const { theme } = useAppStore();
+  const c = theme.colors;
 
   return (
-    <View style={styles.statCard}>
+    <View style={[styles.statCard, { backgroundColor: c.card }]}>
       <View style={[styles.iconContainer, { backgroundColor: `${color}20` }]}>
         <Ionicons name={icon} size={24} color={color} />
       </View>
-      <Text style={styles.statTitle}>{title}</Text>
+      <Text style={[styles.statTitle, { color: c.textSecondary }]}>{title}</Text>
       <View style={styles.valueContainer}>
-        <Text style={styles.statValue}>{value}</Text>
-        {trend && (
-          <Ionicons
-            name={getTrendIcon() as any}
-            size={16}
-            color={getTrendColor()}
-            style={styles.trendIcon}
-          />
-        )}
+        <Text style={[styles.statValue, { color: c.text }]}>{value}</Text>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
   statCard: {
-    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 16,
     flex: 1,
@@ -102,7 +73,6 @@ const styles = StyleSheet.create({
   },
   statTitle: {
     fontSize: 13,
-    color: '#888',
     marginBottom: 4,
   },
   valueContainer: {
@@ -112,9 +82,5 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
-  },
-  trendIcon: {
-    marginLeft: 6,
   },
 });

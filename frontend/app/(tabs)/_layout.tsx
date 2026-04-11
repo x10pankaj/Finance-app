@@ -1,23 +1,25 @@
 import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { initializeData } from '../../src/api';
+import { useAppStore } from '../../src/store';
 
 export default function TabLayout() {
+  const { theme } = useAppStore();
+  const c = theme.colors;
+
   useEffect(() => {
-    // Initialize data on app start
     initializeData().catch(console.error);
   }, []);
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#4CAF50',
-        tabBarInactiveTintColor: '#888',
+        tabBarActiveTintColor: c.tabBarActive,
+        tabBarInactiveTintColor: c.tabBarInactive,
         tabBarStyle: {
-          backgroundColor: '#0c0c0c',
-          borderTopColor: '#1a1a1a',
+          backgroundColor: c.tabBar,
+          borderTopColor: c.tabBarBorder,
           paddingTop: 8,
           height: 88,
         },
@@ -27,9 +29,9 @@ export default function TabLayout() {
           marginBottom: 8,
         },
         headerStyle: {
-          backgroundColor: '#0c0c0c',
+          backgroundColor: c.background,
         },
-        headerTintColor: '#fff',
+        headerTintColor: c.text,
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -92,12 +94,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#0c0c0c',
-  },
-});

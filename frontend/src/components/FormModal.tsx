@@ -1,15 +1,7 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Platform,
-  KeyboardAvoidingView,
-} from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppStore } from '../store';
 
 interface FormModalProps {
   visible: boolean;
@@ -18,35 +10,21 @@ interface FormModalProps {
   children: React.ReactNode;
 }
 
-export const FormModal: React.FC<FormModalProps> = ({
-  visible,
-  title,
-  onClose,
-  children,
-}) => {
+export const FormModal: React.FC<FormModalProps> = ({ visible, title, onClose, children }) => {
+  const { theme } = useAppStore();
+  const c = theme.colors;
+
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.overlay}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.header}>
-            <Text style={styles.title}>{title}</Text>
+    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.overlay, { backgroundColor: c.modalOverlay }]}>
+        <View style={[styles.modalContainer, { backgroundColor: c.card }]}>
+          <View style={[styles.header, { borderBottomColor: c.border }]}>
+            <Text style={[styles.title, { color: c.text }]}>{title}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#fff" />
+              <Ionicons name="close" size={24} color={c.text} />
             </TouchableOpacity>
           </View>
-          <ScrollView
-            style={styles.content}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {children}
           </ScrollView>
         </View>
@@ -56,35 +34,10 @@ export const FormModal: React.FC<FormModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'flex-end',
-  },
-  modalContainer: {
-    backgroundColor: '#1a1a1a',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '90%',
-    minHeight: '50%',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  content: {
-    padding: 20,
-  },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  modalContainer: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '90%', minHeight: '50%' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1 },
+  title: { fontSize: 20, fontWeight: 'bold' },
+  closeButton: { padding: 4 },
+  content: { padding: 20 },
 });

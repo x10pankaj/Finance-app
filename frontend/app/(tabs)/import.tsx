@@ -30,7 +30,8 @@ import { Card } from '../../src/components/Card';
 const currentYear = new Date().getFullYear();
 
 export default function ImportScreen() {
-  const { currency } = useAppStore();
+  const { currency, theme } = useAppStore();
+  const c = theme.colors;
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [transactions, setTransactions] = useState<ParsedTransaction[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -232,7 +233,7 @@ export default function ImportScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Import Transactions</Text>
         <CurrencyToggle />
@@ -383,7 +384,7 @@ export default function ImportScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0c0c0c',
+    
   },
   header: {
     flexDirection: 'row',
@@ -581,7 +582,7 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     padding: 16,
-    backgroundColor: '#0c0c0c',
+    
     borderTopWidth: 1,
     borderTopColor: '#1a1a1a',
     gap: 12,

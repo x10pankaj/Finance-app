@@ -23,7 +23,8 @@ import { Button } from '../../src/components/Button';
 const { width } = Dimensions.get('window');
 
 export default function ProjectionsScreen() {
-  const { currency, projectionYears, setProjectionYears } = useAppStore();
+  const { currency, projectionYears, setProjectionYears, theme } = useAppStore();
+  const c = theme.colors;
   const [data, setData] = useState<ProjectionsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -113,7 +114,7 @@ export default function ProjectionsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading projections...</Text>
         </View>
@@ -124,7 +125,7 @@ export default function ProjectionsScreen() {
   const chartWidth = width - 64;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -422,7 +423,7 @@ export default function ProjectionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0c0c0c',
+    
   },
   scrollView: {
     flex: 1,

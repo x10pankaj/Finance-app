@@ -1,22 +1,26 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps } from 'react-native';
+import { useAppStore } from '../store';
 
 interface FormInputProps extends TextInputProps {
   label: string;
   error?: string;
 }
 
-export const FormInput: React.FC<FormInputProps> = ({
-  label,
-  error,
-  ...props
-}) => {
+export const FormInput: React.FC<FormInputProps> = ({ label, error, ...props }) => {
+  const { theme } = useAppStore();
+  const c = theme.colors;
+
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: c.textSecondary }]}>{label}</Text>
       <TextInput
-        style={[styles.input, error && styles.inputError]}
-        placeholderTextColor="#666"
+        style={[
+          styles.input,
+          { backgroundColor: c.inputBg, borderColor: c.inputBorder, color: c.text },
+          error && { borderColor: '#f44336' },
+        ]}
+        placeholderTextColor={c.textMuted}
         {...props}
       />
       {error && <Text style={styles.error}>{error}</Text>}
@@ -25,29 +29,13 @@ export const FormInput: React.FC<FormInputProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: 16,
-  },
-  label: {
-    color: '#aaa',
-    fontSize: 14,
-    marginBottom: 8,
-  },
+  container: { marginBottom: 16 },
+  label: { fontSize: 14, marginBottom: 8 },
   input: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 8,
     padding: 14,
-    color: '#fff',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#333',
   },
-  inputError: {
-    borderColor: '#f44336',
-  },
-  error: {
-    color: '#f44336',
-    fontSize: 12,
-    marginTop: 4,
-  },
+  error: { color: '#f44336', fontSize: 12, marginTop: 4 },
 });

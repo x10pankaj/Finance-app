@@ -30,7 +30,8 @@ import { Card } from '../../src/components/Card';
 const currentYear = new Date().getFullYear();
 
 export default function ExpensesScreen() {
-  const { currency } = useAppStore();
+  const { currency, theme } = useAppStore();
+  const c = theme.colors;
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -230,18 +231,18 @@ export default function ExpensesScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={[styles.loadingText, { color: c.textSecondary }]}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Expenses</Text>
+        <Text style={[styles.title, { color: c.text }]}>Expenses</Text>
         <CurrencyToggle />
       </View>
 
@@ -270,7 +271,7 @@ export default function ExpensesScreen() {
         />
       )}
 
-      <TouchableOpacity style={styles.fab} onPress={openAddModal}>
+      <TouchableOpacity style={[styles.fab, { backgroundColor: c.fabBg }]} onPress={openAddModal}>
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
 
@@ -345,7 +346,6 @@ export default function ExpensesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0c0c0c',
   },
   loadingContainer: {
     flex: 1,
