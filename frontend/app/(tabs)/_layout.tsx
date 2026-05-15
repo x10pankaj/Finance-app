@@ -13,19 +13,13 @@ export default function TabLayout() {
         tabBarActiveTintColor: c.tabBarActive,
         tabBarInactiveTintColor: c.tabBarInactive,
         tabBarShowLabel: false,
+        headerShown: false,
         tabBarStyle: {
           backgroundColor: c.tabBar,
           borderTopColor: c.tabBarBorder,
           height: 60,
           paddingTop: 6,
           paddingBottom: 6,
-        },
-        headerStyle: {
-          backgroundColor: c.background,
-        },
-        headerTintColor: c.text,
-        headerTitleStyle: {
-          fontWeight: 'bold',
         },
       }}
     >
