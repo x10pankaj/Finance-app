@@ -19,7 +19,6 @@ import {
 } from '../../src/api';
 import { Expense, ExpenseCategory, TransactionType, Currency } from '../../src/types';
 import { useAppStore } from '../../src/store';
-import { CurrencyToggle } from '../../src/components/CurrencyToggle';
 import { FormModal } from '../../src/components/FormModal';
 import { FormInput } from '../../src/components/FormInput';
 import { FormSelect } from '../../src/components/FormSelect';
@@ -245,7 +244,6 @@ export default function ExpensesScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: c.text }]}>Expenses</Text>
-        <CurrencyToggle />
       </View>
 
       {expenses.length === 0 ? (

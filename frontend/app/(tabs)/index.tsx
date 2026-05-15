@@ -12,7 +12,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { getDashboard } from '../../src/api';
 import { DashboardData } from '../../src/types';
 import { useAppStore } from '../../src/store';
-import { CurrencyToggle } from '../../src/components/CurrencyToggle';
 import { StatCard, Card } from '../../src/components/Card';
 
 const COLORS = ['#4CAF50','#2196F3','#FF9800','#E91E63','#9C27B0','#00BCD4','#FFEB3B','#795548','#607D8B','#F44336'];
@@ -80,9 +79,6 @@ export default function DashboardScreen() {
           <View>
             <Text style={[styles.greeting, { color: c.text }]}>Budget Overview</Text>
             <Text style={[styles.year, { color: c.textSecondary }]}>{data?.current_year}</Text>
-          </View>
-          <View style={styles.headerActions}>
-            <CurrencyToggle />
           </View>
         </View>
 

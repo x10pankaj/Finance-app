@@ -14,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { getProjections, getSettings, updateSettings } from '../../src/api';
 import { ProjectionsData, YearProjection } from '../../src/types';
 import { useAppStore } from '../../src/store';
-import { CurrencyToggle } from '../../src/components/CurrencyToggle';
 import { Card } from '../../src/components/Card';
 import { FormModal } from '../../src/components/FormModal';
 import { FormInput } from '../../src/components/FormInput';
@@ -143,15 +142,14 @@ export default function ProjectionsScreen() {
             <Text style={styles.subtitle}>{projectionYears} Year Forecast</Text>
           </View>
           <View style={styles.headerActions}>
-            <CurrencyToggle />
             <TouchableOpacity
-              style={styles.settingsButton}
+              style={[styles.settingsButton, { backgroundColor: c.card }]}
               onPress={() => {
                 setYearsInput(String(projectionYears));
                 setSettingsModalVisible(true);
               }}
             >
-              <Ionicons name="settings-outline" size={22} color="#888" />
+              <Ionicons name="options-outline" size={22} color={c.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
