@@ -242,9 +242,7 @@ export default function ExpensesScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: c.text }]}>Expenses</Text>
-      </View>
+      <View style={styles.header} />
 
       {expenses.length === 0 ? (
         <EmptyState

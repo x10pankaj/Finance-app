@@ -76,10 +76,7 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.accent} />}
       >
         <View style={styles.header}>
-          <View>
-            <Text style={[styles.greeting, { color: c.text }]}>Budget Overview</Text>
-            <Text style={[styles.year, { color: c.textSecondary }]}>{data?.current_year}</Text>
-          </View>
+          <Text style={[styles.year, { color: c.textSecondary }]}>{data?.current_year}</Text>
         </View>
 
         <View style={styles.statsRow}>

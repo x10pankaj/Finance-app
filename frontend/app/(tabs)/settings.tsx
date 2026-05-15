@@ -65,9 +65,6 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.title, { color: c.text }]}>Settings</Text>
-
-        {/* Appearance */}
         <Text style={[styles.sectionTitle, { color: c.textSecondary }]}>APPEARANCE</Text>
         <Card>
           <TouchableOpacity testID="theme-toggle-setting" style={styles.settingRow} onPress={toggleTheme}>

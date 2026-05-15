@@ -137,10 +137,7 @@ export default function ProjectionsScreen() {
         }
       >
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Projections</Text>
-            <Text style={styles.subtitle}>{projectionYears} Year Forecast</Text>
-          </View>
+          <Text style={[styles.subtitle, { color: c.textSecondary }]}>{projectionYears} Year Forecast</Text>
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={[styles.settingsButton, { backgroundColor: c.card }]}

@@ -214,9 +214,7 @@ export default function IncomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: c.text }]}>Income Sources</Text>
-      </View>
+      <View style={styles.header} />
 
       {incomeSources.length === 0 ? (
         <EmptyState

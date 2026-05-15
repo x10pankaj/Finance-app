@@ -245,9 +245,7 @@ export default function InvestmentsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: c.text }]}>Investments</Text>
-      </View>
+      <View style={styles.header} />
 
       {investments.length === 0 ? (
         <EmptyState

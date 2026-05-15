@@ -13,7 +13,15 @@ export default function TabLayout() {
         tabBarActiveTintColor: c.tabBarActive,
         tabBarInactiveTintColor: c.tabBarInactive,
         tabBarShowLabel: false,
-        headerShown: false,
+        headerStyle: {
+          backgroundColor: c.background,
+        },
+        headerTintColor: c.text,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+          fontSize: 18,
+        },
+        headerShadowVisible: false,
         tabBarStyle: {
           backgroundColor: c.tabBar,
           borderTopColor: c.tabBarBorder,
@@ -26,7 +34,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: 'Budget Overview',
           tabBarIcon: ({ color }) => (
             <Ionicons name="grid-outline" size={24} color={color} />
           ),
