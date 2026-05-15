@@ -12,16 +12,13 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: c.tabBarActive,
         tabBarInactiveTintColor: c.tabBarInactive,
+        tabBarShowLabel: false,
         tabBarStyle: {
           backgroundColor: c.tabBar,
           borderTopColor: c.tabBarBorder,
-          paddingTop: 8,
-          height: 88,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-          marginBottom: 8,
+          height: 60,
+          paddingTop: 6,
+          paddingBottom: 6,
         },
         headerStyle: {
           backgroundColor: c.background,
@@ -36,8 +33,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="grid-outline" size={24} color={color} />
           ),
         }}
       />
@@ -45,8 +42,8 @@ export default function TabLayout() {
         name="expenses"
         options={{
           title: 'Expenses',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="wallet-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="wallet-outline" size={24} color={color} />
           ),
         }}
       />
@@ -54,8 +51,8 @@ export default function TabLayout() {
         name="income"
         options={{
           title: 'Income',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cash-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="cash-outline" size={24} color={color} />
           ),
         }}
       />
@@ -63,8 +60,8 @@ export default function TabLayout() {
         name="investments"
         options={{
           title: 'Investments',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="trending-up-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="trending-up-outline" size={24} color={color} />
           ),
         }}
       />
@@ -72,8 +69,8 @@ export default function TabLayout() {
         name="projections"
         options={{
           title: 'Projections',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="analytics-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="analytics-outline" size={24} color={color} />
           ),
         }}
       />
@@ -81,8 +78,8 @@ export default function TabLayout() {
         name="import"
         options={{
           title: 'Import',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cloud-upload-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="cloud-upload-outline" size={24} color={color} />
           ),
         }}
       />

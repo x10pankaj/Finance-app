@@ -32,8 +32,8 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   currency: 'USD',
   projectionYears: 5,
-  themeMode: 'dark',
-  theme: getTheme('dark'),
+  themeMode: 'light',
+  theme: getTheme('light'),
   hydrated: false,
   biometricEnabled: false,
   autoLockMinutes: 5,
