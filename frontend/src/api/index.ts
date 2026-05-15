@@ -128,9 +128,16 @@ export const updateSettings = async (data: Partial<Settings>): Promise<Settings>
 };
 
 // Auth
+export interface Profile {
+  id: string;
+  name: string;
+}
+
 export interface AuthStatus {
   password_set: boolean;
   authenticated: boolean;
+  profiles: Profile[];
+  has_legacy: boolean;
 }
 
 export const getAuthStatus = async (): Promise<AuthStatus> => {
@@ -145,6 +152,26 @@ export const setupPassword = async (password: string): Promise<any> => {
 
 export const login = async (password: string): Promise<any> => {
   const response = await api.post('/auth/login', { password });
+  return response.data;
+};
+
+export const getProfiles = async (): Promise<Profile[]> => {
+  const response = await api.get('/profiles');
+  return response.data;
+};
+
+export const createProfile = async (name: string, password: string): Promise<any> => {
+  const response = await api.post('/profiles', { name, password });
+  return response.data;
+};
+
+export const profileLogin = async (profileId: string, password: string): Promise<any> => {
+  const response = await api.post('/profiles/login', { profile_id: profileId, password });
+  return response.data;
+};
+
+export const deleteProfile = async (profileId: string): Promise<any> => {
+  const response = await api.delete(`/profiles/${profileId}`);
   return response.data;
 };
 

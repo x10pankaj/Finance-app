@@ -19,6 +19,10 @@ from storage import (
     setup_password,
     verify_password,
     change_password,
+    get_all_profiles,
+    create_profile,
+    verify_profile_password,
+    delete_profile,
 )
 
 ROOT_DIR = Path(__file__).parent
@@ -189,6 +193,14 @@ class PasswordChange(BaseModel):
     old_password: str
     new_password: str
 
+class ProfileCreate(BaseModel):
+    name: str
+    password: str
+
+class ProfileLogin(BaseModel):
+    profile_id: str
+    password: str
+
 # Transaction import models
 class TransactionImportRequest(BaseModel):
     transactions: List[Dict[str, Any]]
@@ -243,12 +255,49 @@ CATEGORY_KEYWORDS = {
 }
 
 
-# ── Auth endpoints ───────────────────────────────────────────
+# ── Auth & Profile endpoints ─────────────────────────────────
 
 @api_router.get("/auth/status")
 async def auth_status():
-    return {"password_set": is_password_set(), "authenticated": db is not None}
+    profiles = get_all_profiles()
+    has_legacy = is_password_set()
+    return {
+        "password_set": has_legacy or len(profiles) > 0,
+        "authenticated": db is not None,
+        "profiles": profiles,
+        "has_legacy": has_legacy,
+    }
 
+@api_router.get("/profiles")
+async def list_profiles():
+    return get_all_profiles()
+
+@api_router.post("/profiles")
+async def api_create_profile(body: ProfileCreate):
+    if len(body.name.strip()) < 1:
+        raise HTTPException(status_code=400, detail="Profile name is required")
+    if len(body.password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+    profile = create_profile(body.name.strip(), body.password)
+    global db
+    db = EncryptedDB(body.password, profile["id"])
+    return {"message": "Profile created", "profile": profile}
+
+@api_router.post("/profiles/login")
+async def api_profile_login(body: ProfileLogin):
+    if not verify_profile_password(body.profile_id, body.password):
+        raise HTTPException(status_code=401, detail="Incorrect password")
+    global db
+    db = EncryptedDB(body.password, body.profile_id)
+    return {"message": "Login successful"}
+
+@api_router.delete("/profiles/{profile_id}")
+async def api_delete_profile(profile_id: str):
+    if not delete_profile(profile_id):
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return {"message": "Profile deleted"}
+
+# Legacy single-password auth (backward compat)
 @api_router.post("/auth/setup")
 async def auth_setup(body: PasswordSetup):
     if len(body.password) < 4:

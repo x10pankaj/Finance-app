@@ -15,6 +15,71 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 DATA_DIR = Path(__file__).parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
+PROFILES_FILE = DATA_DIR / "profiles.json"
+
+
+def _get_profiles() -> list[dict]:
+    if not PROFILES_FILE.exists():
+        return []
+    try:
+        return json.loads(PROFILES_FILE.read_text())
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def _save_profiles(profiles: list[dict]) -> None:
+    PROFILES_FILE.write_text(json.dumps(profiles))
+
+
+def get_all_profiles() -> list[dict]:
+    """Return list of profiles (id, name) — no secrets."""
+    return [{"id": p["id"], "name": p["name"]} for p in _get_profiles()]
+
+
+def create_profile(name: str, password: str) -> dict:
+    """Create a new profile with its own data directory."""
+    profiles = _get_profiles()
+    profile_id = str(__import__("uuid").uuid4())[:8]
+    profile_dir = DATA_DIR / profile_id
+    profile_dir.mkdir(exist_ok=True)
+
+    salt = os.urandom(16)
+    (profile_dir / ".salt").write_bytes(salt)
+
+    pw_hash = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100_000).hex()
+    (profile_dir / ".password_hash").write_text(pw_hash)
+
+    profiles.append({"id": profile_id, "name": name})
+    _save_profiles(profiles)
+    return {"id": profile_id, "name": name}
+
+
+def verify_profile_password(profile_id: str, password: str) -> bool:
+    profile_dir = DATA_DIR / profile_id
+    salt_file = profile_dir / ".salt"
+    hash_file = profile_dir / ".password_hash"
+    if not salt_file.exists() or not hash_file.exists():
+        return False
+    salt = salt_file.read_bytes()
+    expected = hash_file.read_text()
+    actual = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100_000).hex()
+    return expected == actual
+
+
+def delete_profile(profile_id: str) -> bool:
+    profiles = _get_profiles()
+    new_profiles = [p for p in profiles if p["id"] != profile_id]
+    if len(new_profiles) == len(profiles):
+        return False
+    _save_profiles(new_profiles)
+    profile_dir = DATA_DIR / profile_id
+    if profile_dir.exists():
+        import shutil
+        shutil.rmtree(profile_dir)
+    return True
+
+
+# Legacy single-profile helpers (kept for backward compat)
 SALT_FILE = DATA_DIR / ".salt"
 PASSWORD_HASH_FILE = DATA_DIR / ".password_hash"
 
@@ -100,10 +165,12 @@ def change_password(old_password: str, new_password: str) -> bool:
 class EncryptedCollection:
     """Drop-in replacement for a Mongo-like collection backed by an encrypted JSON file."""
 
-    def __init__(self, name: str, password: str):
+    def __init__(self, name: str, password: str, data_dir: Path | None = None):
         self._name = name
-        self._path = DATA_DIR / f"{name}.enc"
-        salt = _get_or_create_salt()
+        base = data_dir or DATA_DIR
+        self._path = base / f"{name}.enc"
+        salt_file = base / ".salt"
+        salt = salt_file.read_bytes() if salt_file.exists() else _get_or_create_salt()
         self._fernet = Fernet(_derive_key(password, salt))
 
     # ── internal helpers ──
@@ -188,15 +255,17 @@ class EncryptedCollection:
 class EncryptedDB:
     """Mimics motor's db[collection_name] access pattern."""
 
-    def __init__(self, password: str):
+    def __init__(self, password: str, profile_id: str | None = None):
         self._password = password
+        self._data_dir = (DATA_DIR / profile_id) if profile_id else DATA_DIR
+        self._data_dir.mkdir(exist_ok=True)
         self._collections: dict[str, EncryptedCollection] = {}
 
     def __getattr__(self, name: str) -> EncryptedCollection:
         if name.startswith("_"):
             raise AttributeError(name)
         if name not in self._collections:
-            self._collections[name] = EncryptedCollection(name, self._password)
+            self._collections[name] = EncryptedCollection(name, self._password, self._data_dir)
         return self._collections[name]
 
     def __getitem__(self, name: str) -> EncryptedCollection:

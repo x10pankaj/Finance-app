@@ -30,7 +30,7 @@ import { Card } from '../../src/components/Card';
 const currentYear = new Date().getFullYear();
 
 export default function InvestmentsScreen() {
-  const { currency, theme } = useAppStore();
+  const { currency, theme, bumpDataVersion } = useAppStore();
   const c = theme.colors;
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [investmentTypes, setInvestmentTypes] = useState<InvestmentType[]>([]);
@@ -133,6 +133,7 @@ export default function InvestmentsScreen() {
       setModalVisible(false);
       resetForm();
       loadData();
+      bumpDataVersion();
     } catch (error) {
       console.error('Failed to save investment:', error);
       Alert.alert('Error', 'Failed to save investment');
@@ -154,6 +155,7 @@ export default function InvestmentsScreen() {
             try {
               await deleteInvestment(investment.id);
               loadData();
+              bumpDataVersion();
             } catch (error) {
               Alert.alert('Error', 'Failed to delete investment');
             }

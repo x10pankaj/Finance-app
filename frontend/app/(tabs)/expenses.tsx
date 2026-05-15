@@ -30,7 +30,7 @@ import { Card } from '../../src/components/Card';
 const currentYear = new Date().getFullYear();
 
 export default function ExpensesScreen() {
-  const { currency, theme } = useAppStore();
+  const { currency, theme, bumpDataVersion } = useAppStore();
   const c = theme.colors;
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
@@ -137,6 +137,7 @@ export default function ExpensesScreen() {
       setModalVisible(false);
       resetForm();
       loadData();
+      bumpDataVersion();
     } catch (error) {
       console.error('Failed to save expense:', error);
       Alert.alert('Error', 'Failed to save expense');
@@ -158,6 +159,7 @@ export default function ExpensesScreen() {
             try {
               await deleteExpense(expense.id);
               loadData();
+              bumpDataVersion();
             } catch (error) {
               Alert.alert('Error', 'Failed to delete expense');
             }

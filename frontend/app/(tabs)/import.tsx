@@ -30,7 +30,7 @@ import { Card } from '../../src/components/Card';
 const currentYear = new Date().getFullYear();
 
 export default function ImportScreen() {
-  const { currency, theme } = useAppStore();
+  const { currency, theme, bumpDataVersion } = useAppStore();
   const c = theme.colors;
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [transactions, setTransactions] = useState<ParsedTransaction[]>([]);
@@ -165,7 +165,7 @@ export default function ImportScreen() {
       Alert.alert(
         'Import Complete',
         `Imported ${result.expenses_count} expenses and ${result.income_count} income sources.`,
-        [{ text: 'OK', onPress: () => setTransactions([]) }]
+        [{ text: 'OK', onPress: () => { setTransactions([]); bumpDataVersion(); } }]
       );
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to import transactions');

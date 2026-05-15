@@ -29,7 +29,7 @@ import { Card } from '../../src/components/Card';
 const currentYear = new Date().getFullYear();
 
 export default function IncomeScreen() {
-  const { currency, theme } = useAppStore();
+  const { currency, theme, bumpDataVersion } = useAppStore();
   const c = theme.colors;
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,6 +120,7 @@ export default function IncomeScreen() {
       setModalVisible(false);
       resetForm();
       loadData();
+      bumpDataVersion();
     } catch (error) {
       console.error('Failed to save income source:', error);
       Alert.alert('Error', 'Failed to save income source');
@@ -141,6 +142,7 @@ export default function IncomeScreen() {
             try {
               await deleteIncomeSource(source.id);
               loadData();
+              bumpDataVersion();
             } catch (error) {
               Alert.alert('Error', 'Failed to delete income source');
             }

@@ -17,6 +17,7 @@ interface AppState {
   biometricEnabled: boolean;
   autoLockMinutes: number; // 0 = disabled
   lastActiveTimestamp: number;
+  dataVersion: number; // bumps on any CRUD, triggers dashboard reload
   setCurrency: (currency: Currency) => void;
   setProjectionYears: (years: number) => void;
   toggleTheme: () => void;
@@ -24,6 +25,7 @@ interface AppState {
   setBiometricEnabled: (enabled: boolean) => void;
   setAutoLockMinutes: (mins: number) => void;
   touchActivity: () => void;
+  bumpDataVersion: () => void;
   hydrate: () => Promise<void>;
 }
 
@@ -36,6 +38,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   biometricEnabled: false,
   autoLockMinutes: 5,
   lastActiveTimestamp: Date.now(),
+  dataVersion: 0,
   setCurrency: (currency) => {
     set({ currency });
     AsyncStorage.setItem(STORAGE_KEY_CURRENCY, currency).catch(() => {});
@@ -60,6 +63,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   touchActivity: () => {
     set({ lastActiveTimestamp: Date.now() });
+  },
+  bumpDataVersion: () => {
+    set((state) => ({ dataVersion: state.dataVersion + 1 }));
   },
   hydrate: async () => {
     try {

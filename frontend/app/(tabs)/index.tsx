@@ -19,7 +19,7 @@ import { StatCard, Card } from '../../src/components/Card';
 const COLORS = ['#4CAF50','#2196F3','#FF9800','#E91E63','#9C27B0','#00BCD4','#FFEB3B','#795548','#607D8B','#F44336'];
 
 export default function DashboardScreen() {
-  const { currency, theme } = useAppStore();
+  const { currency, theme, dataVersion } = useAppStore();
   const c = theme.colors;
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,7 @@ export default function DashboardScreen() {
     }
   };
 
-  useEffect(() => { loadData(); }, [currency]);
+  useEffect(() => { loadData(); }, [currency, dataVersion]);
 
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
