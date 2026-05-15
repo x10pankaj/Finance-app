@@ -75,12 +75,18 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="settings-outline" size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="import"
         options={{
-          title: 'Import',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="cloud-upload-outline" size={24} color={color} />
-          ),
+          href: null,
         }}
       />
     </Tabs>
